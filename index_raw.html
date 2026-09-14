@@ -27,19 +27,6 @@
     display: block;
   }
 
-  /* ===== 暗角叠加层（始终保留 box-shadow，只过渡 opacity） ===== */
-  #vignette {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    pointer-events: none;
-    opacity: 0;
-    box-shadow: inset 0 0 240px 70px rgba(0,0,0,0.75);
-    transition: opacity 0.5s ease;
-  }
-
-  #vignette.vignette-on { opacity: 1; }
-  #vignette.vignette-off { opacity: 0; }
 </style>
 </head>
 <body>
@@ -47,11 +34,8 @@
     <img id="img1" src="bg.png" alt="" draggable="false">
     <img id="img2" src="bg.png" alt="" draggable="false">
   </div>
-  <div id="vignette"></div>
-
   <script>
     const track = document.getElementById('track');
-    const vignette = document.getElementById('vignette');
     const img1 = document.getElementById('img1');
     const img2 = document.getElementById('img2');
 
@@ -148,19 +132,6 @@
         track.releasePointerCapture(event.pointerId);
       }
     }
-
-    window.wallpaperPropertyListener = {
-      applyUserProperties: function(properties) {
-        if (properties.scrollspeed) {
-          currentSpeed = properties.scrollspeed.value;
-          speedFactor = calcSpeedFactor(currentSpeed);
-        }
-        if (properties.vignette) {
-          const on = properties.vignette.value === true;
-          vignette.className = on ? 'vignette-on' : 'vignette-off';
-        }
-      }
-    };
 
     track.addEventListener('pointerdown', startDrag);
     track.addEventListener('pointermove', moveDrag);

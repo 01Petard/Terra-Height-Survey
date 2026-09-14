@@ -42,23 +42,6 @@
       user-select: none;
     }
 
-    #vignette {
-      position: fixed;
-      z-index: 999;
-      inset: 0;
-      pointer-events: none;
-      opacity: 0;
-      box-shadow: inset 0 0 240px 70px rgba(0, 0, 0, 0.75);
-      transition: opacity 0.5s ease;
-    }
-
-    #vignette.vignette-on {
-      opacity: 1;
-    }
-
-    #vignette.vignette-off {
-      opacity: 0;
-    }
   </style>
 </head>
 <body>
@@ -66,11 +49,8 @@
     <img id="img1" src="bg.webp" width="14975" height="960" alt="" fetchpriority="high" draggable="false">
     <img id="img2" src="bg.webp" width="14975" height="960" alt="" draggable="false">
   </div>
-  <div id="vignette"></div>
-
   <script>
     const track = document.getElementById('track');
-    const vignette = document.getElementById('vignette');
     const img1 = document.getElementById('img1');
     const img2 = document.getElementById('img2');
 
@@ -191,20 +171,6 @@
         track.releasePointerCapture(event.pointerId);
       }
     }
-
-    window.wallpaperPropertyListener = {
-      applyUserProperties(properties) {
-        if (properties.scrollspeed) {
-          currentSpeed = properties.scrollspeed.value;
-          speedFactor = calcSpeedFactor(currentSpeed);
-        }
-
-        if (properties.vignette) {
-          const enabled = properties.vignette.value === true;
-          vignette.className = enabled ? 'vignette-on' : 'vignette-off';
-        }
-      }
-    };
 
     track.addEventListener('pointerdown', startDrag);
     track.addEventListener('pointermove', moveDrag);
