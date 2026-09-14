@@ -17,6 +17,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      overscroll-behavior-x: none;
       background: #000;
     }
 
@@ -24,7 +25,13 @@
       display: flex;
       height: 100vh;
       height: 100dvh;
+      touch-action: pan-y;
+      cursor: grab;
       will-change: transform;
+    }
+
+    .track.is-dragging {
+      cursor: grabbing;
     }
 
     .track img {
@@ -71,6 +78,7 @@
     const SLOWEST_DURATION = 600;
     const FASTEST_DURATION = 10;
     const DEFAULT_SPEED = 30;
+    const DRAG_RESUME_DELAY = 1200;
 
     let renderWidth = 0;
     let currentSpeed = DEFAULT_SPEED;
@@ -79,11 +87,29 @@
     let lastTimestamp = null;
     let animationId = null;
     let resizeId = null;
+    let isDragging = false;
+    let dragPointerId = null;
+    let dragStartX = 0;
+    let dragStartOffset = 0;
+    let resumeAt = 0;
 
     function calcSpeedFactor(speedValue) {
       const duration = SLOWEST_DURATION
         - (speedValue - 1) * (SLOWEST_DURATION - FASTEST_DURATION) / 99;
       return renderWidth / duration;
+    }
+
+    function normalizeOffset(value) {
+      if (!renderWidth) {
+        return 0;
+      }
+
+      const normalized = value % renderWidth;
+      return normalized > 0 ? normalized - renderWidth : normalized;
+    }
+
+    function render() {
+      track.style.transform = `translate3d(${offset}px, 0, 0)`;
     }
 
     function animate(timestamp) {
@@ -93,13 +119,12 @@
 
       const deltaSeconds = (timestamp - lastTimestamp) / 1000;
       lastTimestamp = timestamp;
-      offset -= speedFactor * deltaSeconds;
 
-      while (offset <= -renderWidth) {
-        offset += renderWidth;
+      if (!isDragging && timestamp >= resumeAt) {
+        offset = normalizeOffset(offset - speedFactor * deltaSeconds);
       }
 
-      track.style.transform = `translate3d(${offset}px, 0, 0)`;
+      render();
       animationId = requestAnimationFrame(animate);
     }
 
@@ -115,7 +140,7 @@
       track.style.width = `${renderWidth * 2}px`;
       img1.style.width = `${renderWidth}px`;
       img2.style.width = `${renderWidth}px`;
-      offset %= renderWidth;
+      offset = normalizeOffset(offset);
       speedFactor = calcSpeedFactor(currentSpeed);
       lastTimestamp = null;
 
@@ -123,6 +148,48 @@
         cancelAnimationFrame(animationId);
       }
       animationId = requestAnimationFrame(animate);
+    }
+
+    function startDrag(event) {
+      if (!event.isPrimary
+        || (event.pointerType === 'mouse' && event.button !== 0)
+        || !renderWidth) {
+        return;
+      }
+
+      event.preventDefault();
+      isDragging = true;
+      dragPointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragStartOffset = offset;
+      track.classList.add('is-dragging');
+      track.setPointerCapture(event.pointerId);
+    }
+
+    function moveDrag(event) {
+      if (!isDragging || event.pointerId !== dragPointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      offset = normalizeOffset(dragStartOffset + event.clientX - dragStartX);
+      render();
+    }
+
+    function finishDrag(event) {
+      if (!isDragging || event.pointerId !== dragPointerId) {
+        return;
+      }
+
+      isDragging = false;
+      dragPointerId = null;
+      resumeAt = performance.now() + DRAG_RESUME_DELAY;
+      lastTimestamp = null;
+      track.classList.remove('is-dragging');
+
+      if (track.hasPointerCapture(event.pointerId)) {
+        track.releasePointerCapture(event.pointerId);
+      }
     }
 
     window.wallpaperPropertyListener = {
@@ -138,6 +205,12 @@
         }
       }
     };
+
+    track.addEventListener('pointerdown', startDrag);
+    track.addEventListener('pointermove', moveDrag);
+    track.addEventListener('pointerup', finishDrag);
+    track.addEventListener('pointercancel', finishDrag);
+    track.addEventListener('lostpointercapture', finishDrag);
 
     window.addEventListener('resize', () => {
       if (resizeId !== null) {
