@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>泰拉身高体检</title>
+  <link rel="preload" href="bg.webp" as="image" type="image/webp" fetchpriority="high">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .track {
+      display: flex;
+      height: 100vh;
+      height: 100dvh;
+      will-change: transform;
+    }
+
+    .track img {
+      display: block;
+      flex: 0 0 auto;
+      width: auto;
+      height: 100%;
+      user-select: none;
+    }
+
+    #vignette {
+      position: fixed;
+      z-index: 999;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: inset 0 0 240px 70px rgba(0, 0, 0, 0.75);
+      transition: opacity 0.5s ease;
+    }
+
+    #vignette.vignette-on {
+      opacity: 1;
+    }
+
+    #vignette.vignette-off {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="track" id="track" aria-hidden="true">
+    <img id="img1" src="bg.webp" width="14975" height="960" alt="" fetchpriority="high" draggable="false">
+    <img id="img2" src="bg.webp" width="14975" height="960" alt="" draggable="false">
+  </div>
+  <div id="vignette"></div>
+
+  <script>
+    const track = document.getElementById('track');
+    const vignette = document.getElementById('vignette');
+    const img1 = document.getElementById('img1');
+    const img2 = document.getElementById('img2');
+
+    // 可调参数
+    const SLOWEST_DURATION = 600;
+    const FASTEST_DURATION = 10;
+    const DEFAULT_SPEED = 30;
+
+    let renderWidth = 0;
+    let currentSpeed = DEFAULT_SPEED;
+    let offset = 0;
+    let speedFactor = 0;
+    let lastTimestamp = null;
+    let animationId = null;
+    let resizeId = null;
+
+    function calcSpeedFactor(speedValue) {
+      const duration = SLOWEST_DURATION
+        - (speedValue - 1) * (SLOWEST_DURATION - FASTEST_DURATION) / 99;
+      return renderWidth / duration;
+    }
+
+    function animate(timestamp) {
+      if (lastTimestamp === null) {
+        lastTimestamp = timestamp;
+      }
+
+      const deltaSeconds = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+      offset -= speedFactor * deltaSeconds;
+
+      while (offset <= -renderWidth) {
+        offset += renderWidth;
+      }
+
+      track.style.transform = `translate3d(${offset}px, 0, 0)`;
+      animationId = requestAnimationFrame(animate);
+    }
+
+    function setup() {
+      img1.style.width = '';
+      img2.style.width = '';
+      renderWidth = img1.getBoundingClientRect().width;
+
+      if (!renderWidth) {
+        return;
+      }
+
+      track.style.width = `${renderWidth * 2}px`;
+      img1.style.width = `${renderWidth}px`;
+      img2.style.width = `${renderWidth}px`;
+      offset %= renderWidth;
+      speedFactor = calcSpeedFactor(currentSpeed);
+      lastTimestamp = null;
+
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+      }
+      animationId = requestAnimationFrame(animate);
+    }
+
+    window.wallpaperPropertyListener = {
+      applyUserProperties(properties) {
+        if (properties.scrollspeed) {
+          currentSpeed = properties.scrollspeed.value;
+          speedFactor = calcSpeedFactor(currentSpeed);
+        }
+
+        if (properties.vignette) {
+          const enabled = properties.vignette.value === true;
+          vignette.className = enabled ? 'vignette-on' : 'vignette-off';
+        }
+      }
+    };
+
+    window.addEventListener('resize', () => {
+      if (resizeId !== null) {
+        cancelAnimationFrame(resizeId);
+      }
+      resizeId = requestAnimationFrame(setup);
+    }, { passive: true });
+
+    if (document.readyState === 'complete') {
+      setup();
+    } else {
+      window.addEventListener('load', setup, { once: true });
+    }
+  </script>
+</body>
+</html>
